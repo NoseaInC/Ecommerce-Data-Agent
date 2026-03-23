@@ -1,0 +1,21 @@
+# 1. 操作系统生成的垃圾文件
+.DS_Store
+*.DS_Store
+
+# 2. Python 编译缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 3. 编辑器/IDE 的本地历史记录
+.history/
+.vscode/
+
+# 4. 本地运行生成的数据库和日志文件（面试官不需要你的本地数据，他们只看生成脚本）
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+*.log
+data/ecommerce.db
+v1_single_agent_baseline/e_commerce.db
