@@ -23,28 +23,28 @@
 
 ```mermaid
 graph TD
-    User((用户提问)) --> Router[🧠 Router Agent <br> 意图网关]
+    User((用户提问)) --> Router["🧠 Router Agent <br> 意图网关"]
     
-    Router -- "场景A: 日常闲聊" --> Direct[直接回复并阻断]
-    Router -- "场景B: 数据分析" --> Validator[🛡️ Validator Agent <br> 动态 Schema 探查]
+    Router -- "场景A: 日常闲聊" --> Direct["直接回复并阻断"]
+    Router -- "场景B: 数据分析" --> Validator["🛡️ Validator Agent <br> 动态 Schema 探查"]
     
-    Validator -- "无可用字段" --> Stop[拦截熔断，防幻觉]
-    Validator -- "校验通过" --> Dispatch{动态调度层}
+    Validator -- "无可用字段" --> Stop["拦截熔断，防幻觉"]
+    Validator -- "校验通过" --> Dispatch{"动态调度层"}
     
-    subgraph ⚡ 专家执行层 (并发执行)
-        Dispatch --> SQL[🛠️ SQL Skill <br> 取数与沙盒校验]
-        Dispatch --> ML[🤖 ML Skill <br> XGBoost 算法归因]
+    subgraph ExecutionLayer ["⚡ 专家执行层 (并发执行)"]
+        Dispatch --> SQL["🛠️ SQL Skill <br> 取数与沙盒校验"]
+        Dispatch --> ML["🤖 ML Skill <br> XGBoost 算法归因"]
     end
     
-    SQL -- "真实业务数据" --> Whiteboard[(全局大白板 <br> Global State)]
+    SQL -- "真实业务数据" --> Whiteboard[("全局大白板 <br> Global State")]
     ML -- "特征重要性/预测" --> Whiteboard
     
-    Whiteboard --> Synth[📝 Synthesizer Agent <br> 商业洞察合成]
+    Whiteboard --> Synth["📝 Synthesizer Agent <br> 商业洞察合成"]
     
-    Synth --> Reviewer[⚖️ Reviewer Agent <br> 总监级逻辑审计]
+    Synth --> Reviewer["⚖️ Reviewer Agent <br> 总监级逻辑审计"]
     
     Reviewer -- "得分 < 80 (附带尖锐反馈)" --> Synth
-    Reviewer -- "得分 >= 80" --> Output((高管级商业战报))
+    Reviewer -- "得分 >= 80" --> Output(("高管级商业战报"))
     
     classDef agent fill:#f9f0ff,stroke:#b19cd9,stroke-width:2px;
     classDef skill fill:#e6f3ff,stroke:#6baed6,stroke-width:2px;
