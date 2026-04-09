@@ -1,6 +1,8 @@
 # 🚀 E-commerce Data Agent: AI 驱动的电商数据分析与归因工作流
 
-> 本项目探索了如何利用大型语言模型（LLM）与机器学习/因果推断算法重构电商数据科学的工作流。项目包含从“单体智能”到“多 Agent 协作”的两个完整迭代版本，旨在解决海量数据查询、复杂业务归因（如 GMV 波动）、商品策略分析及自动化洞察交付的痛点。
+> 本项目主打一个“用魔法打败魔法”：探索如何用 LLM 叠加机器学习与因果推断算法，把传统电商数据科学的工作流给“重做一遍”。
+
+在这里，你可以看到代码从初出茅庐的“单体智能”，一路打怪升级到“多 Agent 协作”的完整进化史。表面上，这套框架是为了解决海量数据查询、复杂业务归因（比如让人头秃的 GMV 异动）以及商品策略分析等硬核痛点；但实不相瞒，这本质上也是一个热爱折腾的数据人，为了满足好奇心（顺便幻想一下未来能少写几行 SQL）的自娱自乐之作！😎💻
 
 ---
 
@@ -16,6 +18,42 @@
 ---
 
 ## 📂 版本导航与架构演进
+
+### 📊 系统架构与工作流 (System Architecture)
+
+```mermaid
+graph TD
+    User((用户提问)) --> Router["🧠 Router Agent <br> 意图网关"]
+    
+    Router -- "场景A: 日常闲聊" --> Direct["直接回复并阻断"]
+    Router -- "场景B: 数据分析" --> Validator["🛡️ Validator Agent <br> 动态 Schema 探查"]
+    
+    Validator -- "无可用字段" --> Stop["拦截熔断，防幻觉"]
+    Validator -- "校验通过" --> Dispatch{"动态调度层"}
+    
+    subgraph ExecutionLayer ["⚡ 专家执行层 (并发执行)"]
+        Dispatch --> SQL["🛠️ SQL Skill <br> 取数与沙盒校验"]
+        Dispatch --> ML["🤖 ML Skill <br> XGBoost 算法归因"]
+    end
+    
+    SQL -- "真实业务数据" --> Whiteboard[("全局大白板 <br> Global State")]
+    ML -- "特征重要性/预测" --> Whiteboard
+    
+    Whiteboard --> Synth["📝 Synthesizer Agent <br> 商业洞察合成"]
+    
+    Synth --> Reviewer["⚖️ Reviewer Agent <br> 总监级逻辑审计"]
+    
+    Reviewer -- "得分 < 80 (附带尖锐反馈)" --> Synth
+    Reviewer -- "得分 >= 80" --> Output(("高管级商业战报"))
+    
+    classDef agent fill:#f9f0ff,stroke:#b19cd9,stroke-width:2px;
+    classDef skill fill:#e6f3ff,stroke:#6baed6,stroke-width:2px;
+    classDef state fill:#fff3e0,stroke:#ffb74d,stroke-width:2px;
+    
+    class Router,Validator,Synth,Reviewer agent;
+    class SQL,ML skill;
+    class Whiteboard state;
+```
 
 本项目完整保留了架构演进的历史，分为以下两个核心阶段：
 
