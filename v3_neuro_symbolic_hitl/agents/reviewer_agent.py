@@ -66,16 +66,31 @@ def node_reviewer(state: AgentState) -> AgentState:
             
         # 规则 2：底层冷数据 100% 绝对对齐校验 (只校验 <raw> 标签)
         raw_results_str = str(raw_results)
-        
+        # 找到这部分代码并修改：
         for num_str in raw_numbers_in_draft:
-            # 去除可能存在的空格
+            # 1. 基础清理：去掉头尾空格
             clean_num = num_str.strip()
-            # 粗粒度匹配：被标记为 <raw> 的数字，必须在底层数据字符串中出现过
-            if clean_num not in raw_results_str:
+            
+            # 💡 核心脱水处理：过滤掉大模型手欠加上的 千分位逗号、百分号 和 中文单位
+            # 只保留 数字、小数点 和 负号
+            dehydrated_num = re.sub(r'[^\d\.-]', '', clean_num)
+            
+            # 容错：如果脱水后变成了空字符串，说明标签里全是文字，算违规
+            if not dehydrated_num:
                 final_score -= 30
-                feedback_reasons.append(f"❌ 原始数据幻觉致命错误：你用 <raw> 标记了数据 '{clean_num}'，但在底层真实的 SQL 结果中根本找不到这个原始数值！")
+                feedback_reasons.append(f"❌ 原始数据幻觉致命错误：你用 <raw> 标记了 '{clean_num}'，这根本不是一个有效的业务数字！")
+                continue
 
-        # 规则 3：业务完整性排查 (让 LLM 依然负责看有没有策略)
+            # 2. 拿着“脱水”后的纯净数字去底层匹配
+            if dehydrated_num not in raw_results_str:
+                # 为了防止小数点末尾补0导致的误杀（如 9421810.6 vs 9421810.60），我们可以把末尾的 .0 去掉再试一次
+                dehydrated_num_stripped = dehydrated_num.rstrip('0').rstrip('.') if '.' in dehydrated_num else dehydrated_num
+                
+                if dehydrated_num_stripped not in raw_results_str:
+                    final_score -= 30
+                    feedback_reasons.append(f"❌ 原始数据幻觉致命错误：你用 <raw> 标记了数据 '{clean_num}' (清洗后为 {dehydrated_num})，但在底层真实的 SQL 结果中根本找不到这个原始数值！")
+        
+         # 规则 3：业务完整性排查 (让 LLM 依然负责看有没有策略)
         if not extracted_data.get("has_actionable_advice", False):
             final_score -= 15
             feedback_reasons.append("⚠️ 洞察缺失：没有基于数据给出实质性的商业建议或下一步策略。")
