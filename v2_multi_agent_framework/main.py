@@ -36,9 +36,11 @@ def run_workflow(query: str):
     state: AgentState = {
         "session_id": str(uuid.uuid4()),
         "user_query": query,
+        "is_direct_chat": False,
+        "direct_response": "",
         "is_info_sufficient": True,
         "task_category": "",
-        "tasks": ["sql_skill", "ml_analysis_skill"], # 强制注入两个任务用于演示并发
+        "tasks": [], # <--- 移除之前的硬编码，完全听从主脑的安排！
         "data_reference": "",
         "analytics_results": {},
         "generated_plots": [],
@@ -50,11 +52,27 @@ def run_workflow(query: str):
     
     state["audit_log"].append(f"初始化任务: {query}")
     
+    # ==========================================
+    # 🌟 第一关：主脑拦截网关
+    # ==========================================
+    state = node_router(state)
+    
+    if state.get("is_direct_chat"):
+        print("\n" + "="*60)
+        print(f"🤖 [主脑直答]:\n{state['direct_response']}")
+        print("="*60)
+        return # <--- 提前下班！不再执行后续的 Validator 和 并发 Agent！
+        
+    # ==========================================
+    # 🌟 第二关：数据资产守门人
+    # ==========================================
     state = node_validator(state)
     
     if not state["is_info_sufficient"]:
         print("🛑 拦截：信息不足，任务终止。")
         return
+        
+    # ... 后面的 DAG 并发逻辑 (while attempt < max_retries:) 保持不变 ...
         
     max_retries = 3
     attempt = 0
@@ -124,8 +142,6 @@ def run_workflow(query: str):
 
 if __name__ == "__main__":
     test_query = """
-    帮我深度复盘一下这波双十一的数据：
-    1. 请跨表写 SQL，帮我算出'服饰内衣'和'3C数码'这两个类目在总净GMV上的绝对值差异。
-    2. 请调用机器学习归因包，帮我分析一下这两个类目销量背后的核心驱动因子（特征重要性）分别是什么？下个月的趋势如何？
+帮我查一下双十一期间总共有多少订单？并产出分析报告
     """
     run_workflow(test_query)

@@ -13,8 +13,9 @@ def node_reviewer(state: AgentState) -> AgentState:
     draft = state.get("draft_report", "")
     
     # 构造极其严苛的“法官” Prompt
+# 构造“动态拆解+思维链”的终极法官 Prompt
     system_prompt = f"""
-    你是某一线电商平台极其严厉的数据分析总监。
+    你是某一线互联网公司极其严厉的数据分析总监。
     你的下属（Synthesizer）刚刚提交了一份商业洞察报告草稿。
     你需要对照【业务方的原始提问】和【底层跑出的真实数据】，对这份报告进行打分（0-100分）。
     
@@ -23,15 +24,24 @@ def node_reviewer(state: AgentState) -> AgentState:
     【下属提交的报告草稿】:
     {draft}
     
-    【打分标准】
-    1. 准确性（40分）：是否准确引用了底层数据？严禁出现幻觉或编造数字。
-    2. 完整性（30分）：是否完全回答了业务方的所有提问？
-    3. 专业性（30分）：是否有极其干瘪的程序语言（如中括号、元组）？语言是否符合高管汇报的商业 Sense？
-    
-    你必须且只能返回一个合法的 JSON，格式如下：
+    【你的核心任务：动态构建评价体系并打分】
+    你不能死板地打分。你必须先深度分析【业务方的原始提问】，自主拆解出 3 到 5 个最核心的评估维度，并为其分配合理的权重（总和为100）。
+    例如：如果业务方问了“为什么”，你的维度中必须包含“归因逻辑的严谨度”；如果业务方问了“趋势”，你的维度必须包含“预测的合理性”。
+
+    你必须且只能返回一个合法的 JSON，严格遵循以下顺序结构执行你的思考流：
     {{
-        "score": 85,
-        "feedback": "如果低于 80 分，请给出极其具体、尖锐的修改指导意见。如果大于等于 80 分，填'审核通过，准许交付'。"
+        "step1_dynamic_criteria": [
+            {{"dimension": "准确性基准", "weight": 30, "reason": "业务数据汇报必须以底层真实数据为准"}},
+            {{"dimension": "<你根据提问自主提取的维度2>", "weight": 40, "reason": "<你为什么认为这个维度对当前提问最重要>"}},
+            {{"dimension": "<你根据提问自主提取的维度3>", "weight": 30, "reason": "..."}}
+        ],
+        "step2_evaluation_details": [
+            {{"dimension": "准确性基准", "score": 25, "deduction_reason": "金额数据多写了一个零"}},
+            {{"dimension": "<维度2>", "score": 35, "deduction_reason": "..."}},
+            {{"dimension": "<维度3>", "score": 20, "deduction_reason": "..."}}
+        ],
+        "step3_total_score": 80,
+        "step4_feedback": "如果低于 80 分，请给出极其具体、尖锐的修改指导意见。如果大于等于 80 分，填'审核通过，准许交付'。"
     }}
     """
 
@@ -46,12 +56,12 @@ def node_reviewer(state: AgentState) -> AgentState:
         result_str = response.choices[0].message.content
         review_result = json.loads(result_str)
         
-
-        score = review_result.get("score", 0)
-        feedback = review_result.get("feedback", "未知意见")
+        # 💡 修复点：修改这里，让 Python 去抓取新版的键名！
+        score = review_result.get("step3_total_score", 0)
+        feedback = review_result.get("step4_feedback", "未知意见")
         
         state["reviewer_score"] = score
-        state["reviewer_feedback"] = feedback  # <--- 把意见落盘到全局状态中
+        state["reviewer_feedback"] = feedback  # 把意见落盘到全局状态中
         
 
         if score >= 80:

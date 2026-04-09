@@ -20,48 +20,61 @@ def node_router(state: AgentState) -> AgentState:
     - 若问题明确要求"画图"、"趋势图"，请在上述基础上追加: "plot_skill"
     """
     
-    # 2. 构造 Router 专属的高级 Prompt
+    # 2. 构造 Router 专属的高级 Prompt (升级版：加入闲聊拦截)
     system_prompt = f"""
-    你是数据智能中枢的高级路由分发专家。
-    请根据用户的提问和以下业务 SOP，决定调用的底层 Skill。
+    你是数据智能中枢的“主脑（Master Router）”。
+    你需要首先判断用户的核心意图：
     
-    {rag_context}
+    【场景 A：日常闲聊或通用问答】
+    如果用户只是在打招呼（如“你好”、“在吗”）、问候、或者问一些与当前电商业务数据毫无关联的通用问题（如“写首诗”、“1+1等于几”）。
+    -> 动作：直接由你回答，不需要调用底层技能。
+    
+    【场景 B：电商数据分析】
+    如果用户的问题涉及“取数”、“查数据”、“GMV对比”、“归因”、“预测”等。
+    -> 动作：规划底层 Skill。参考以下SOP：
+    - 若问题仅涉及"查数据"、"多少钱"，分发给: ["sql_skill"]
+    - 若问题涉及"归因"、"驱动因子"、"预测"，分发给: ["sql_skill", "ml_analysis_skill"]
     
     你必须且只能返回一个合法的 JSON，严格遵循以下结构：
     {{
-        "task_category": "<用简短的词概括任务类型，如：基础取数 / 多维归因 / 策略评估>",
-        "tasks": ["skill_name_1", "skill_name_2"]
+        "is_direct_chat": true 或 false,
+        "direct_response": "如果是场景A，在这里写出你直接回复给用户的话（高情商一点）。如果是场景B，请填空字符串。",
+        "task_category": "<简短概括任务类型，如：闲聊问答 / 基础取数 / 多维归因>",
+        "tasks": ["如果是场景B，填写需要的技能列表，如 sql_skill"] 
     }}
     """
 
     try:
-        # 3. 发起真实的 API 调用 (开启强制 JSON 模式)
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": query}
             ],
-            response_format={"type": "json_object"}, # ⚠️ 杀手锏：强制输出 JSON
-            temperature=0.0 # 路由任务需要绝对客观，消除大模型的随机幻觉
+            response_format={"type": "json_object"}, 
+            temperature=0.0 
         )
         
-        # 4. 解析结果并写回“大白板”
         result_str = response.choices[0].message.content
         router_decision = json.loads(result_str)
         
+        # 将主脑的判断写入大白板
+        state["is_direct_chat"] = router_decision.get("is_direct_chat", False)
+        state["direct_response"] = router_decision.get("direct_response", "")
         state["task_category"] = router_decision.get("task_category", "未知类型")
-        state["tasks"] = router_decision.get("tasks", ["sql_skill"]) # 兜底策略
+        state["tasks"] = router_decision.get("tasks", []) 
         
-        log_msg = f"Router 判定类型: {state['task_category']}, 规划路径: {state['tasks']}"
-        state["audit_log"].append(log_msg)
-        
-        print(f"   => 📊 任务定级: {state['task_category']}")
-        print(f"   => 🛤️ 规划的执行流: {state['tasks']}")
-        
+        if state["is_direct_chat"]:
+            print(f"   => 🧠 主脑判定：这是日常交流，无需消耗底层计算资源。")
+            state["audit_log"].append("Router: 判定为直接对话")
+        else:
+            print(f"   => 📊 主脑判定：触发数据分析流。定级: {state['task_category']}")
+            print(f"   => 🛤️ 规划的执行流: {state['tasks']}")
+            state["audit_log"].append(f"Router: 规划路径 {state['tasks']}")
+            
     except Exception as e:
          print(f"   => ❌ Router 调用异常: {e}")
-         state["tasks"] = ["sql_skill"] # 如果 API 挂了或者断网，默认只给基础 SQL 工具保底
-         state["audit_log"].append(f"Router 异常: {e}")
+         state["is_direct_chat"] = False
+         state["tasks"] = ["sql_skill"] 
          
     return state

@@ -10,6 +10,8 @@ class AgentState(TypedDict):
     user_query: str               # 用户的原始提问
     
     # 2. 路由与控制层
+    is_direct_chat: bool          # 是否是普通对话（无需查库）
+    direct_response: str          # 如果是普通对话，主脑的直接回复内容
     is_info_sufficient: bool      # Validator 判断数据/条件是否充足
     task_category: str            # Router 判定的任务类型
     tasks: List[str]              # Router 规划的并行执行节点 (如: ["sql_skill", "xgboost_skill"])
